@@ -44,14 +44,14 @@ pub fn main() !void {
 
     try calorie_counts.append(calories);
 
-    // Find the biggest number of calories per elf
-    var max_calories: u32 = 0;
-    for (calorie_counts.items) |calorie_count| {
-        if (calorie_count > max_calories) {
-            max_calories = calorie_count;
-        }
-    }
+    var items = calorie_counts.items;
 
-    debug.print("{}", .{max_calories});
+    // Sort array in place
+    std.sort.insertionSort(u32, calorie_counts.items, {}, compareDesc);
+
+    debug.print("1: {d}\n2: {d}\n3: {d}\ntotal: {d}\n", .{items[0], items[1], items[2], items[0] + items[1] + items[2]});
 }
 
+fn compareDesc(context: void, a: u32, b: u32) bool {
+    return std.sort.desc(u32)(context, a, b);
+}
