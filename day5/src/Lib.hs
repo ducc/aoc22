@@ -4,28 +4,46 @@ module Lib
 
 import Data.List (elemIndex, transpose, intercalate)
 import Data.List.Split
-import Control.Lens
+import Control.Lens 
 
 day5 :: IO ()
 day5 = do
     contents <- readFile "input.txt"
     let inputLines = lines contents
     
+    -- Find where the empty line is after the drawing but before instructions
     let dividingLineIndex = findEmptyLine inputLines
+
+    -- Split the lines into arrays for the drawing and the instructions
     let drawing = take (dividingLineIndex) inputLines
     let instructions = drop (dividingLineIndex + 1) inputLines
 
-    let temp = filter (\c -> c /= '±') $ map (\c -> if (c==' ' || c=='[' || c==']') then '±'; else c) $ intercalate "\n" $ transpose $ reverse drawing
-    let temp2 = filter (\c -> (length c) /= 0) $ lines $ intercalate "" $ splitOn "" $ temp
-    let temp3 = map (\c -> ([head c], tail c)) temp2
+    -- ["1ZN", "2MCD", "3P"]
+    let temp = drawingToArrays drawing
 
     -- [(1,"ZN"),(2,"MCD"),(3,"P")]
-    let stacks = map parseThing temp3
+    let stacks = map (\c -> (read [head c], tail c)) temp
 
     -- (3, 1, 3)
     let parsedInstructions = map (parseInstruction) instructions
 
-    putStrLn $ topOfStacks $ processAllInstructions stacks parsedInstructions
+    -- [(1, "M"), (2, "C"), (3, "PZND")]
+    let ranInstructions = processAllInstructions stacks parsedInstructions
+
+    -- MCD
+    let output = topOfStacks ranInstructions
+
+    putStrLn $ output
+
+drawingToArrays :: [[Char]] -> [[Char]]
+drawingToArrays drawing = 
+    filter (\c -> (length c) /= 0) 
+    $ lines 
+    $ filter (\c -> c /= ' ' && c /= '[' && c /= ']') 
+    $ intercalate "\n" 
+    $ transpose 
+    $ reverse 
+    $ drawing
 
 findEmptyLine :: [String] -> Int
 findEmptyLine input = case "" `elemIndex` input of 
@@ -37,30 +55,26 @@ parseThing (number, crates) = (read number, crates)
 
 -- move 3 from 1 to 3 -> (3, 1, 3)
 parseInstruction :: String -> (Int, Int, Int)
-parseInstruction instruction = do 
-    let trimmed = drop 1 $ splitOn " " instruction
-    let quantity = read (head $ trimmed) :: Int
-    let from = read (head $ drop 2 $ trimmed) :: Int
-    let to = read (head $ drop 4 $ trimmed) :: Int
-    (quantity, from, to)
+parseInstruction instruction = extractInstructionParts $ splitOn " " instruction
+
+-- ["move", "3", "from", "1", "to", "3"] -> (3, 1, 3)
+extractInstructionParts :: [String] -> (Int, Int, Int)
+extractInstructionParts [_, quantity, _, from, _, to] = (read quantity, read from, read to)
+extractInstructionParts e = error $ "invalid input: " ++ show e
 
 processAllInstructions :: [(Int, String)] -> [(Int, Int, Int)] -> [(Int, String)]
+processAllInstructions stacks [] = stacks
 processAllInstructions stacks instructions = do
-    if length instructions == 0
-        then stacks
-        else do
-            let nextInstruction = head instructions
-            let remainingInstructions = tail instructions
+    let nextInstruction = head instructions
+    let remainingInstructions = tail instructions
 
-            let output = processInstruction stacks nextInstruction
-            processAllInstructions output remainingInstructions
-
-
+    let output = processInstruction stacks nextInstruction
+    processAllInstructions output remainingInstructions
 
 processInstruction :: [(Int, String)] -> (Int, Int, Int) -> [(Int, String)]
 processInstruction stacks (quantity, from, to) = do
-    let fromStack = getStackByIndex stacks from
-    let toStack = getStackByIndex stacks to
+    let (_, fromStack) = stacks !! (from-1)
+    let (_, toStack) = stacks !! (to-1)
 
     let taken = reverse $ drop quantity $ reverse fromStack
     
@@ -72,14 +86,5 @@ processInstruction stacks (quantity, from, to) = do
 
     updatedStacks2
 
-getStackByIndex :: [(Int, String)] -> Int -> String
-getStackByIndex stacks idx = do
-    let (_, stack) = stacks!!(idx-1)
-    stack
-
-secondElementInTuple :: (a, b) -> b
-secondElementInTuple (_, b) = b
-
 topOfStacks :: [(Int, String)] -> String
-topOfStacks stacks = do 
-    map (\x -> head $ reverse $ secondElementInTuple x) stacks
+topOfStacks stacks = map (\x -> head $ reverse $ snd x) stacks
